@@ -1,0 +1,7 @@
+claviron.invoke.send("count.v1", { n = 1 })
+claviron.invoke.send("count.v1", { n = 2 })
+print("serving")
+claviron.invoke.serve("count.v1", function(payload, call)
+    print("got " .. payload.n)
+end)
+print("stopped serving")

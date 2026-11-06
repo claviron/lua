@@ -1,0 +1,166 @@
+[package]
+autotests = false
+include = [
+    "/src/**/*.rs",
+    "/tests/**",
+    "/README.md",
+    "/lua/*.lua",
+    "/lua/*.LICENSE",
+    "/LICENSE-MIT",
+    "/LICENSE-APACHE",
+]
+name = "claviron-lua"
+version.workspace = true
+publish.workspace = true
+edition.workspace= true
+description = "Lua 5.5 embedded in Claviron: a fresh sandboxed state per script, extended from Rust"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords = ["lua", "scripting", "interpreter", "embedding", "async"]
+categories = ["web-programming::http-server", "asynchronous"]
+
+[[test]]
+name = "process_api"
+path = "tests/runtime/process_api.rs"
+required-features = ["server"]
+# Initializes Lua explicitly; keep it outside the routine library test run.
+test = false
+
+[features]
+default = []
+edge = ["app", "dep:claviron-edge", "claviron-http/lua", "dep:claviron-types"]
+# A host's configuration: `lua.yaml`'s search path, read at boot and reload.
+server = ["dep:async-trait", "dep:claviron-runtime", "dep:serde", "dep:serde_yaml"]
+# The fleet's shared state as Lua modules: `claviron.orbit.cell`, …
+orbit = ["dep:claviron-orbit", "dep:claviron-app", "server"]
+# `claviron.log`: records to the log channels `logging.yaml` declares.
+log = ["dep:claviron-logging", "claviron-logging/pipeline"]
+# `claviron.fetch`: HTTP out, to the hosts `lua.yaml` allows.
+fetch = ["dep:reqwest", "server"]
+# Applications: `lua.yaml`'s `applications:`, loaded once per worker.
+app = ["server", "dep:bytes", "dep:claviron-app", "dep:claviron-helpers", "dep:claviron-http", "dep:http", "dep:http-body", "dep:http-body-util"]
+# WebSockets for applications: `websocket:` on a `lua:` route, over an
+# HTTP/1.1 Upgrade or an HTTP/2 extended CONNECT.
+websocket = ["claviron-edge?/websocket", "app", "dep:fastwebsockets", "dep:hyper", "dep:hyper-util"]
+# Reliable WebTransport streams reuse the fleet's bounded message codec.
+webtransport = ["claviron-edge?/webtransport", "app", "dep:claviron-orbit", "dep:futures-util"]
+# Shared SQL dependencies; adapters require `postgres`, `mysql` or `sqlite`.
+db = ["server", "dep:claviron-db", "claviron-db/server", "dep:futures-util", "dep:sqlx", "sqlx/json"]
+# `claviron.db.mysql`, on the MySQL pools.
+mysql = ["db", "claviron-db/mysql", "sqlx/mysql"]
+postgres = ["db", "claviron-db/postgres", "sqlx/postgres"]
+sqlite = ["db", "claviron-db/sqlite", "sqlx/sqlite", "dep:sqlx-core"]
+# `lua:` tasks in Claviron's task service.
+tasks = ["dep:claviron-tasks", "server"]
+
+[dependencies]
+# ── Internal workspace crates ───────────────────────────────────────────
+claviron-app = { workspace = true, optional = true }
+claviron-edge = { workspace = true, optional = true }
+claviron-types = { workspace = true, optional = true }
+claviron-db = { workspace = true, default-features = false, optional = true }
+claviron-helpers = { workspace = true, optional = true }
+claviron-http = { workspace = true, optional = true }
+claviron-logging = { workspace = true, optional = true }
+claviron-orbit = { workspace = true, optional = true }
+claviron-runtime = { workspace = true, optional = true }
+claviron-tasks = { workspace = true, optional = true }
+
+# ── Async runtime & primitives ──────────────────────────────────────────
+async-trait = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["fs", "io-util", "macros", "rt", "sync", "time"] }
+tokio-util = { workspace = true, features = ["rt"] }
+
+# ── Serialization & parsing ─────────────────────────────────────────────
+serde = { workspace = true, optional = true, features = ["derive"] }
+serde_json.workspace = true
+serde_yaml = { workspace = true, optional = true }
+
+# ── HTTP core ───────────────────────────────────────────────────────────
+fastwebsockets = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+http-body = { workspace = true, optional = true }
+http-body-util = { workspace = true, optional = true }
+hyper = { workspace = true, optional = true }
+hyper-util = { workspace = true, optional = true, features = ["tokio"] }
+# Method-specific route lookup for Lua applications.
+matchit = "0.9"
+# Outbound claviron.fetch requests under the configured host policy.
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2"], optional = true }
+
+# ── Lua ─────────────────────────────────────────────────────────────────
+# Pinned by minor: every minor release so far has changed the API. `vendored`
+# builds Lua 5.5 from source into the binary, so every host runs one build.
+mlua = { version = "0.12", features = ["lua55", "vendored", "async", "send", "serde"] }
+
+# ── Database / cache backends ───────────────────────────────────────────
+sqlx = { workspace = true, optional = true, features = ["runtime-tokio"] }
+# The facade does not re-export TransactionManager. Use SQLx's own transaction
+# machinery while retaining the pool lease for error-only connection retirement.
+sqlx-core = { version = "0.9", default-features = false, optional = true }
+
+# ── Logging / errors / diagnostics ──────────────────────────────────────
+thiserror.workspace = true
+tracing.workspace = true
+
+# ── Misc utilities ──────────────────────────────────────────────────────
+bytes = { workspace = true, optional = true }
+regex.workspace = true
+
+[dev-dependencies]
+# ── Async runtime & primitives ──────────────────────────────────────────
+tokio = { workspace = true, features = ["io-util", "macros", "net", "rt", "rt-multi-thread", "sync"] }
+
+[workspace]
+resolver = "3"
+
+[workspace.package]
+version = "0.2.0-alpha.25"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/claviron/lua"
+homepage = "https://github.com/claviron/lua"
+authors = ["ilker Arabaci <iadev09@claviron.dev>"]
+publish = true
+
+[workspace.dependencies]
+async-trait = "0.1"
+bytes = "1.11"
+claviron-app = { version = "0.2.0-alpha.25" }
+claviron-db = { version = "0.2.0-alpha.25", default-features = false }
+claviron-edge = { version = "0.2.0-alpha.25" }
+claviron-helpers = { version = "0.2.0-alpha.25" }
+claviron-http = { version = "0.2.0-alpha.25", features = ["server"] }
+claviron-logging = { version = "0.2.0-alpha.25" }
+claviron-orbit = { version = "0.2.0-alpha.25" }
+claviron-runtime = { version = "0.2.0-alpha.25" }
+claviron-tasks = { version = "0.2.0-alpha.25" }
+claviron-types = { version = "0.2.0-alpha.25", default-features = false }
+fastwebsockets = "0.10"
+futures-util = "0.3"
+http = "1.4"
+http-body = "1.0"
+http-body-util = "0.1"
+hyper = "1.12"
+hyper-util = "0.1"
+regex = "1.12"
+serde = "1"
+serde_json = "1.0"
+serde_yaml = "0.9"
+sqlx = { version = "0.9", default-features = false }
+thiserror = "2.0"
+tokio = "1"
+tokio-util = "0.7"
+tracing = "0.1"
+
+[profile.dev]
+opt-level = 1
+debug = 1
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+opt-level = 3

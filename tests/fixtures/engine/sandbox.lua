@@ -1,0 +1,7 @@
+assert(io == nil and os == nil and debug == nil and package == nil)
+assert(dofile == nil and loadfile == nil)
+assert(load("return 1 + 1")() == 2)
+local binary = string.dump(function() return 1 end)
+assert(load(binary) == nil, "a binary chunk is refused")
+assert(not pcall(require, "io"))
+print(arg[0], arg[1], math.maxinteger)

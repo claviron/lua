@@ -1,0 +1,3 @@
+local name, file = ...
+loads = (loads or 0) + 1
+return { hi = function(who) return "hi " .. who end, name = name }
