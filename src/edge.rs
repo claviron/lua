@@ -20,7 +20,7 @@ use claviron_http::policy::HttpPolicyOverride;
 use claviron_http::{RouteBody, ServiceResult};
 use http::Request;
 
-use claviron_edge::pipeline::{DispatchCall, DispatchStep};
+use claviron_pipeline::{DispatchCall, DispatchStep};
 
 pub use config::{LuaRouteConfig, LuaSocketOriginPolicy};
 
@@ -28,7 +28,7 @@ pub use config::{LuaRouteConfig, LuaSocketOriginPolicy};
 /// The edge keeps it as written; this is where it is decoded. An absent or
 /// null directive declares nothing.
 fn declared(
-    scope: &claviron_edge::Site
+    scope: &claviron_pipeline::Site
 ) -> Result<Vec<LuaRouteConfig>, serde_yaml::Error> {
     match scope.directive("lua") {
         None | Some(serde_yaml::Value::Null) => Ok(Vec::new()),
@@ -98,11 +98,11 @@ impl LuaBackend {
     }
 }
 
-impl claviron_edge::pipeline::BackendHandler for LuaBackend {
-    fn contract(&self) -> claviron_edge::pipeline::BackendContract {
-        claviron_edge::pipeline::BackendContract {
-            identity: claviron_edge::pipeline::BackendIdentity::None,
-            reply: claviron_edge::pipeline::BackendReply::Owner,
+impl claviron_pipeline::BackendHandler for LuaBackend {
+    fn contract(&self) -> claviron_pipeline::BackendContract {
+        claviron_pipeline::BackendContract {
+            identity: claviron_pipeline::BackendIdentity::None,
+            reply: claviron_pipeline::BackendReply::Owner,
         }
     }
 }
@@ -111,7 +111,7 @@ impl DispatchStep for LuaBackend {
     fn call(
         &self,
         request: Request<RouteBody>,
-        context: Option<claviron_edge::pipeline::host::HostContext<'_>>,
+        context: Option<claviron_pipeline::HostContext<'_>>,
     ) -> DispatchCall {
         let Some(mount) = self.select(request.uri().path()) else {
             return DispatchCall::ready(ServiceResult::Unhandled(request));
@@ -164,7 +164,7 @@ impl Endpoint {
     /// this one.
     fn still_declared(
         &self,
-        host: &claviron_edge::Site,
+        host: &claviron_pipeline::Site,
     ) -> bool {
         let selected =
             host.routes.find(&self.path).map(|route| &**route).unwrap_or(host);
@@ -177,7 +177,7 @@ impl Endpoint {
 /// Every socket endpoint the host's scopes declare, decoded once.
 #[cfg(any(feature = "websocket", feature = "webtransport"))]
 fn socket_endpoints(
-    host: &claviron_edge::Site
+    host: &claviron_pipeline::Site
 ) -> Result<Vec<Endpoint>, serde_yaml::Error> {
     let mut endpoints = Vec::new();
     for (prefix, scope) in host.scopes() {
@@ -250,20 +250,20 @@ pub fn register(
 }
 
 struct Factory;
-impl claviron_edge::pipeline::backend::BackendFactory for Factory {
+impl claviron_pipeline::factory::BackendFactory for Factory {
     fn name(&self) -> &'static str {
         "lua"
     }
-    fn placement(&self) -> claviron_edge::pipeline::backend::BackendPlacement {
-        claviron_edge::pipeline::backend::BackendPlacement::AfterFiles
+    fn placement(&self) -> claviron_pipeline::factory::BackendPlacement {
+        claviron_pipeline::factory::BackendPlacement::AfterFiles
     }
     fn prepare(
         &self,
-        context: &claviron_edge::pipeline::backend::BackendContext<'_>,
+        context: &claviron_pipeline::factory::BackendContext<'_>,
     ) -> claviron_runtime::registry::Result<
-        Vec<Arc<dyn claviron_edge::pipeline::BackendHandler>>,
+        Vec<Arc<dyn claviron_pipeline::BackendHandler>>,
     > {
-        let policy = claviron_edge::extension::RouteContext {
+        let policy = claviron_pipeline::extension::RouteContext {
             state: context.state,
             host: context.host,
             config: context.site,
@@ -285,7 +285,7 @@ impl claviron_edge::pipeline::backend::BackendFactory for Factory {
         )
         .into_iter()
         .map(|owner| {
-            Arc::new(owner) as Arc<dyn claviron_edge::pipeline::BackendHandler>
+            Arc::new(owner) as Arc<dyn claviron_pipeline::BackendHandler>
         })
         .collect())
     }
@@ -336,7 +336,7 @@ impl claviron_edge::Routable for Sessions {
         host: &claviron_types::Host,
         config: Arc<claviron_edge::HostConfig>,
     ) -> claviron_runtime::registry::Result<
-        Vec<claviron_edge::pipeline::H1UpgradeRoute>,
+        Vec<claviron_http::upgrade::H1UpgradeRoute>,
     > {
         let mut routes = Vec::new();
         websocket::append_routes(&self.state, host, &config, &mut routes)?;

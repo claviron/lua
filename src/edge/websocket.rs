@@ -9,8 +9,8 @@ use claviron_runtime::{
 use claviron_types::Host;
 
 use super::{Endpoint, LuaSocketOriginPolicy, origin::allows_origin};
-use claviron_edge::Site;
-use claviron_edge::pipeline::{H1UpgradeHandler, H1UpgradeRoute};
+use claviron_http::upgrade::{H1UpgradeHandler, H1UpgradeRoute};
+use claviron_pipeline::Site;
 
 pub(crate) fn append_routes(
     state: &AppState,
@@ -193,15 +193,15 @@ impl H1UpgradeHandler for WebSocketUpgrade {
     async fn accept(
         &self,
         _state: &claviron_runtime::AppState,
-        ctx: &claviron_edge::pipeline::H1UpgradeContext,
-    ) -> claviron_edge::pipeline::H1UpgradeResult {
+        ctx: &claviron_http::upgrade::H1UpgradeContext,
+    ) -> claviron_http::upgrade::H1UpgradeResult {
         if !allows_origin(
             self.origin,
             &ctx.headers,
             &ctx.uri,
             &ctx.conn.scheme(),
         ) {
-            return Err(claviron_edge::pipeline::H1UpgradeReject::new(
+            return Err(claviron_http::upgrade::H1UpgradeReject::new(
                 http::StatusCode::FORBIDDEN,
                 None,
             ));
@@ -209,7 +209,7 @@ impl H1UpgradeHandler for WebSocketUpgrade {
         let headers =
             claviron_http::upgrade::websocket_response_headers(ctx, None)
                 .map_err(|error| {
-                    claviron_edge::pipeline::H1UpgradeReject::bad_request(
+                    claviron_http::upgrade::H1UpgradeReject::bad_request(
                         error.to_string(),
                     )
                 })?;
@@ -218,11 +218,11 @@ impl H1UpgradeHandler for WebSocketUpgrade {
             &self.application,
         )
         .map_err(|error| {
-            claviron_edge::pipeline::H1UpgradeReject::service_unavailable(
+            claviron_http::upgrade::H1UpgradeReject::service_unavailable(
                 error.to_string(),
             )
         })?;
-        Ok(claviron_edge::pipeline::H1UpgradeAccept::with_state(
+        Ok(claviron_http::upgrade::H1UpgradeAccept::with_state(
             headers,
             application,
         ))
@@ -231,8 +231,8 @@ impl H1UpgradeHandler for WebSocketUpgrade {
     async fn handle_upgraded(
         &self,
         _state: claviron_runtime::AppState,
-        ctx: claviron_edge::pipeline::H1UpgradeContext,
-        accepted: Option<claviron_edge::pipeline::H1UpgradeState>,
+        ctx: claviron_http::upgrade::H1UpgradeContext,
+        accepted: Option<claviron_http::upgrade::H1UpgradeState>,
         upgraded: hyper::upgrade::Upgraded,
     ) -> claviron_runtime::registry::Result<()> {
         let application = accepted

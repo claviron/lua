@@ -12,12 +12,12 @@ use claviron_types::Host;
 use http::StatusCode;
 
 use super::Endpoint;
-use claviron_edge::Site;
-use claviron_edge::pipeline::{
+use claviron_edge::{
     AnyAuthenticated, AuthContext, H3WebTransportSession, WebTransportAccept,
     WebTransportHandler, WebTransportRegistry, WebTransportReject,
     WebTransportResult,
 };
+use claviron_pipeline::Site;
 
 pub(crate) fn append_routes(
     state: &AppState,

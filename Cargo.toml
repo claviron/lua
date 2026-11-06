@@ -30,7 +30,7 @@ test = false
 
 [features]
 default = []
-edge = ["app", "dep:claviron-edge", "claviron-http/lua", "dep:claviron-types"]
+edge = ["app", "dep:claviron-edge", "claviron-http/lua", "dep:claviron-pipeline", "dep:claviron-types"]
 # A host's configuration: `lua.yaml`'s search path, read at boot and reload.
 server = ["dep:async-trait", "dep:claviron-runtime", "dep:serde", "dep:serde_yaml"]
 # The fleet's shared state as Lua modules: `claviron.orbit.cell`, …
@@ -65,6 +65,7 @@ claviron-helpers = { workspace = true, optional = true }
 claviron-http = { workspace = true, optional = true }
 claviron-logging = { workspace = true, optional = true }
 claviron-orbit = { workspace = true, optional = true }
+claviron-pipeline = { workspace = true, optional = true }
 claviron-runtime = { workspace = true, optional = true }
 claviron-tasks = { workspace = true, optional = true }
 
@@ -136,6 +137,7 @@ claviron-helpers = { version = "0.2.0-alpha.25" }
 claviron-http = { version = "0.2.0-alpha.25", features = ["server"] }
 claviron-logging = { version = "0.2.0-alpha.25" }
 claviron-orbit = { version = "0.2.0-alpha.25" }
+claviron-pipeline = { version = "0.2.0-alpha.25" }
 claviron-runtime = { version = "0.2.0-alpha.25" }
 claviron-tasks = { version = "0.2.0-alpha.25" }
 claviron-types = { version = "0.2.0-alpha.25", default-features = false }

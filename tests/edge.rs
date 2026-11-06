@@ -11,10 +11,9 @@ use claviron_http::{RouteBody, RouteResponse};
 use http::{HeaderValue, Request, Response, StatusCode};
 use http_body::{Body, Frame};
 
-use claviron_edge::pipeline::{
-    ApplicationHandler, DispatchStep, HostPipelineBuilder,
-};
 use claviron_http::ServiceResult;
+use claviron_pipeline::DispatchStep;
+use claviron_pipeline::plan::{ApplicationHandler, HostPipelineBuilder};
 
 fn routes(source: &str) -> Vec<LuaRouteConfig> {
     serde_yaml::from_str(source).unwrap()
