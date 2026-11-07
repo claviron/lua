@@ -139,7 +139,7 @@ fn mounted_websocket_path(
 
 /// One socket endpoint as it was prepared. Its handler keeps this, so that
 /// admitting a socket interprets no configuration.
-#[cfg(any(feature = "websocket", feature = "webtransport"))]
+#[cfg(feature = "webtransport")]
 #[derive(Clone)]
 struct Endpoint {
     /// Where the endpoint is mounted on the host.
@@ -152,7 +152,7 @@ struct Endpoint {
     mount: Option<PathPrefix>,
 }
 
-#[cfg(any(feature = "websocket", feature = "webtransport"))]
+#[cfg(feature = "webtransport")]
 impl Endpoint {
     /// Whether `host` still declares, for this endpoint's path, exactly what
     /// the endpoint was prepared from.
@@ -175,7 +175,7 @@ impl Endpoint {
 }
 
 /// Every socket endpoint the host's scopes declare, decoded once.
-#[cfg(any(feature = "websocket", feature = "webtransport"))]
+#[cfg(feature = "webtransport")]
 fn socket_endpoints(
     host: &claviron_pipeline::Site
 ) -> Result<Vec<Endpoint>, serde_yaml::Error> {
@@ -206,7 +206,7 @@ fn socket_endpoints(
 }
 
 /// The decode failure of a host's `lua:` directive, as a preparation error.
-#[cfg(any(feature = "websocket", feature = "webtransport"))]
+#[cfg(feature = "webtransport")]
 fn invalid(
     host: &claviron_types::Host,
     error: serde_yaml::Error,
@@ -216,7 +216,7 @@ fn invalid(
     ))
 }
 
-#[cfg(all(test, feature = "websocket"))]
+#[cfg(all(test, feature = "webtransport"))]
 #[path = "../tests/edge/socket_path.rs"]
 mod socket_path_tests;
 
@@ -237,15 +237,9 @@ pub fn register(
                 "Lua requires the Edge host registry",
             )
         })?;
-    registry.register_backend_factory(Arc::new(Factory))?;
-    #[cfg(any(feature = "websocket", feature = "webtransport"))]
-    claviron_edge::register_routable(
-        state,
-        Arc::new(Sessions {
-            #[cfg(feature = "websocket")]
-            state: state.clone(),
-        }),
-    )?;
+    registry.site().register_backend(Arc::new(Factory))?;
+    #[cfg(feature = "webtransport")]
+    claviron_edge::register_routable(state, Arc::new(Sessions))?;
     Ok(())
 }
 
@@ -277,27 +271,35 @@ impl claviron_pipeline::factory::BackendFactory for Factory {
                 context.prefix
             ))
         })?;
-        Ok(LuaBackend::new(
-            context.state.registry_ref().resolve::<LuaApplications>(),
-            &routes,
-            Some(context.prefix),
-            policy,
-        )
-        .into_iter()
-        .map(|owner| {
-            Arc::new(owner) as Arc<dyn claviron_pipeline::BackendHandler>
-        })
-        .collect())
+        #[allow(unused_mut)]
+        let mut owners: Vec<
+            Arc<dyn claviron_pipeline::BackendHandler>,
+        > = Vec::new();
+        // A socket's path is its endpoint's, whatever an HTTP mount would say.
+        #[cfg(feature = "websocket")]
+        if let Some(sockets) = websocket::Sockets::prepare(context, &routes) {
+            owners.push(Arc::new(sockets));
+        }
+        owners.extend(
+            LuaBackend::new(
+                context.state.registry_ref().resolve::<LuaApplications>(),
+                &routes,
+                Some(context.prefix),
+                policy,
+            )
+            .into_iter()
+            .map(|owner| {
+                Arc::new(owner) as Arc<dyn claviron_pipeline::BackendHandler>
+            }),
+        );
+        Ok(owners)
     }
 }
 
-#[cfg(any(feature = "websocket", feature = "webtransport"))]
-struct Sessions {
-    #[cfg(feature = "websocket")]
-    state: claviron_runtime::AppState,
-}
+#[cfg(feature = "webtransport")]
+struct Sessions;
 
-#[cfg(any(feature = "websocket", feature = "webtransport"))]
+#[cfg(feature = "webtransport")]
 impl claviron_runtime::registry::Component<claviron_runtime::AppState>
     for Sessions
 {
@@ -307,7 +309,7 @@ impl claviron_runtime::registry::Component<claviron_runtime::AppState>
     }
 }
 
-#[cfg(any(feature = "websocket", feature = "webtransport"))]
+#[cfg(feature = "webtransport")]
 impl claviron_edge::Routable for Sessions {
     fn match_host(
         &self,
@@ -324,22 +326,6 @@ impl claviron_edge::Routable for Sessions {
         host: &claviron_types::Host,
         config: &claviron_edge::HostConfig,
     ) -> claviron_runtime::registry::Result<()> {
-        #[cfg(feature = "webtransport")]
-        webtransport::append_routes(state, host, config)?;
-        #[cfg(not(feature = "webtransport"))]
-        let _ = (state, host, config);
-        Ok(())
-    }
-    #[cfg(feature = "websocket")]
-    fn h1_upgrades(
-        &self,
-        host: &claviron_types::Host,
-        config: Arc<claviron_edge::HostConfig>,
-    ) -> claviron_runtime::registry::Result<
-        Vec<claviron_http::upgrade::H1UpgradeRoute>,
-    > {
-        let mut routes = Vec::new();
-        websocket::append_routes(&self.state, host, &config, &mut routes)?;
-        Ok(routes)
+        webtransport::append_routes(state, host, config)
     }
 }
