@@ -101,6 +101,7 @@ impl LuaBackend {
 impl claviron_pipeline::BackendHandler for LuaBackend {
     fn contract(&self) -> claviron_pipeline::BackendContract {
         claviron_pipeline::BackendContract {
+            execution: claviron_runtime::ExecutorSpec::Inherit,
             identity: claviron_pipeline::BackendIdentity::None,
             reply: claviron_pipeline::BackendReply::Owner,
         }

@@ -67,6 +67,7 @@ impl Sockets {
 impl BackendHandler for Sockets {
     fn contract(&self) -> BackendContract {
         BackendContract {
+            execution: claviron_runtime::ExecutorSpec::Inherit,
             // The origin check reads the connection's scheme.
             identity: BackendIdentity::Request,
             reply: BackendReply::Owner,
