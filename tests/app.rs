@@ -20,7 +20,7 @@ async fn load(fixture: &str) -> Arc<LuaApplication> {
         env_file: Vec::new(),
         env: Default::default(),
         concurrency: 1,
-        max_waiting: 4,
+        max_queued: 4,
         websocket: SocketConfig::default(),
         webtransport: SocketConfig::default(),
     };
@@ -130,5 +130,21 @@ async fn bodies_stream_both_ways() {
     assert_eq!(
         frames,
         vec![Bytes::from("A"), Bytes::from("B"), Bytes::from("C")]
+    );
+}
+
+#[test]
+fn application_queue_accepts_zero_and_rejects_the_old_key() {
+    let config = serde_yaml::from_str::<ApplicationConfig>(
+        "{module: app.lua, max_queued: 0}",
+    )
+    .unwrap();
+    assert_eq!(config.max_queued, 0);
+    let error = serde_yaml::from_str::<ApplicationConfig>(
+        "{module: app.lua, max_waiting: null}",
+    )
+    .unwrap_err();
+    assert!(
+        error.to_string().contains("max_queued counts only waiting exchanges")
     );
 }

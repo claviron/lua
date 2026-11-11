@@ -442,7 +442,7 @@ applications:
   shop:
     module: apps/shop/app.lua   # relative: the working directory's
     concurrency: 8              # requests one state runs at once; 1 when unwritten
-    max_waiting: 256            # requests queued for a permit; 256 when unwritten
+    max_queued: 256            # requests queued for a permit; 256 when unwritten
 ```
 
 ```yaml
@@ -471,7 +471,7 @@ return router
   it, a request that waits — on `fetch`, a cell, a stream, an event — lets
   another run; coroutines switch only there, so a handler that computes holds
   its turn. Raising it is a decision for applications that wait.
-- `max_waiting` bounds the queue for a permit; a request beyond it is refused
+- `max_queued` bounds the queue for a permit; a request beyond it is refused
   with `503` at once. How long a request may wait for a permit is the route's
   `requests.queue_timeout`, as for JavaScript: the wait ends on a permit, or
   on that declared time.

@@ -2,7 +2,7 @@
 //! requests. See `ARCHITECTURE.md`, Applications.
 //!
 //! Each request is a task on Tokio and a coroutine in the application's state,
-//! admitted through two semaphores: `max_waiting` bounds the queue for a
+//! admitted through two semaphores: `max_queued` bounds the queue for a
 //! permit, `concurrency` the requests the state runs at once.
 
 use std::path::PathBuf;
@@ -26,38 +26,82 @@ use crate::{Engine, Execution};
 
 /// One application in `lua.yaml`.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
-#[serde(deny_unknown_fields)]
+#[serde(from = "ApplicationFields")]
 pub struct ApplicationConfig {
     /// The module that returns what serves requests. Relative: the working
     /// directory's.
     pub module: PathBuf,
     /// Application framework metadata; when absent, management reports Olua.
+    pub frameworks: Option<Vec<String>>,
+    pub icon: Option<String>,
+    /// Raw execution sources; the application owner resolves and watches them.
+    pub env_file: Vec<PathBuf>,
+    /// Inline values win over files and the selected deployment variant.
+    pub env: std::collections::BTreeMap<String, String>,
+    /// Requests the state runs at once: the permits of its semaphore.
+    pub concurrency: usize,
+    /// Requests queued for a permit before one more is refused.
+    pub max_queued: usize,
+    /// Its WebSockets, when a `lua:` route declares any.
+    pub websocket: SocketConfig,
+    /// Reliable WebTransport sessions use the same message/queue limits.
+    pub webtransport: SocketConfig,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ApplicationFields {
+    module: PathBuf,
     #[serde(
         default,
         alias = "framework",
         deserialize_with = "claviron_helpers::de::opt_one_or_many"
     )]
-    pub frameworks: Option<Vec<String>>,
+    frameworks: Option<Vec<String>>,
     #[serde(default)]
-    pub icon: Option<String>,
-    /// Raw execution sources; the application owner resolves and watches them.
+    icon: Option<String>,
     #[serde(default, deserialize_with = "claviron_helpers::de::one_or_many")]
-    pub env_file: Vec<PathBuf>,
-    /// Inline values win over files and the selected deployment variant.
+    env_file: Vec<PathBuf>,
     #[serde(default)]
-    pub env: std::collections::BTreeMap<String, String>,
-    /// Requests the state runs at once: the permits of its semaphore.
+    env: std::collections::BTreeMap<String, String>,
     #[serde(default = "one")]
-    pub concurrency: usize,
-    /// Requests queued for a permit before one more is refused.
-    #[serde(default = "max_waiting")]
-    pub max_waiting: usize,
-    /// Its WebSockets, when a `lua:` route declares any.
+    concurrency: usize,
+    #[serde(default = "max_queued")]
+    max_queued: usize,
+    #[serde(
+        default,
+        rename = "max_waiting",
+        deserialize_with = "reject_max_waiting"
+    )]
+    _retired_max_waiting: (),
     #[serde(default)]
-    pub websocket: SocketConfig,
-    /// Reliable WebTransport sessions use the same message/queue limits.
+    websocket: SocketConfig,
     #[serde(default)]
-    pub webtransport: SocketConfig,
+    webtransport: SocketConfig,
+}
+
+impl From<ApplicationFields> for ApplicationConfig {
+    fn from(fields: ApplicationFields) -> Self {
+        Self {
+            module: fields.module,
+            frameworks: fields.frameworks,
+            icon: fields.icon,
+            env_file: fields.env_file,
+            env: fields.env,
+            concurrency: fields.concurrency,
+            max_queued: fields.max_queued,
+            websocket: fields.websocket,
+            webtransport: fields.webtransport,
+        }
+    }
+}
+
+fn reject_max_waiting<'de, D: serde::Deserializer<'de>>(
+    _: D
+) -> std::result::Result<(), D::Error> {
+    Err(serde::de::Error::custom(
+        "max_waiting was removed; max_queued counts only waiting exchanges",
+    ))
 }
 
 /// An application's WebSockets: the same two limits a JavaScript
@@ -94,8 +138,7 @@ fn one() -> usize {
     1
 }
 
-/// JavaScript applications' default, so the two queue alike.
-fn max_waiting() -> usize {
+fn max_queued() -> usize {
     256
 }
 
@@ -185,7 +228,7 @@ impl LuaApplication {
             socket: config.websocket,
             #[cfg(feature = "webtransport")]
             webtransport: config.webtransport,
-            waiting: Semaphore::new(config.max_waiting),
+            waiting: Semaphore::new(config.max_queued),
         })
     }
 

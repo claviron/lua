@@ -82,7 +82,7 @@ policy determines buffering at the HTTP boundary.
 
 Globals and loaded modules survive between application requests. Keep
 request-specific values in locals. `concurrency` bounds in-flight coroutines
-and defaults to one; `max_waiting` bounds the permit queue and defaults to 256.
+and defaults to one; `max_queued` bounds the permit queue and defaults to 256.
 Excess queued work is rejected rather than growing an unbounded backlog.
 Concurrency overlaps waiting coroutines; it does not make Lua computation
 parallel within one state. A streamed reply retains its permit through completion.
