@@ -130,17 +130,17 @@ publish = true
 [workspace.dependencies]
 async-trait = "0.1"
 bytes = "1.11"
-claviron-app = { version = "0.2.0-alpha.26", path = "../../claviron/crates/app" }
-claviron-db = { version = "0.2.0-alpha.26", path = "../../claviron/crates/db", default-features = false }
-claviron-edge = { version = "0.2.0-alpha.26", path = "../../claviron/crates/edge" }
-claviron-helpers = { version = "0.2.0-alpha.26", path = "../../claviron/crates/helpers" }
-claviron-http = { version = "0.2.0-alpha.26", path = "../../claviron/crates/http", features = ["server"] }
-claviron-logging = { version = "0.2.0-alpha.26", path = "../../claviron/crates/logging" }
-claviron-orbit = { version = "0.2.0-alpha.26", path = "../../claviron/crates/orbit" }
-claviron-pipeline = { version = "0.2.0-alpha.26", path = "../../claviron/crates/pipeline" }
-claviron-runtime = { version = "0.2.0-alpha.26", path = "../../claviron/crates/runtime" }
-claviron-tasks = { version = "0.2.0-alpha.26", path = "../../claviron/crates/tasks" }
-claviron-types = { version = "0.2.0-alpha.26", path = "../../claviron/crates/types", default-features = false }
+claviron-app = { version = "0.2.0-alpha.26" }
+claviron-db = { version = "0.2.0-alpha.26", default-features = false }
+claviron-edge = { version = "0.2.0-alpha.26" }
+claviron-helpers = { version = "0.2.0-alpha.26" }
+claviron-http = { version = "0.2.0-alpha.26", features = ["server"] }
+claviron-logging = { version = "0.2.0-alpha.26" }
+claviron-orbit = { version = "0.2.0-alpha.26" }
+claviron-pipeline = { version = "0.2.0-alpha.26" }
+claviron-runtime = { version = "0.2.0-alpha.26" }
+claviron-tasks = { version = "0.2.0-alpha.26" }
+claviron-types = { version = "0.2.0-alpha.26", default-features = false }
 fastwebsockets = "0.10"
 futures-util = "0.3"
 http = "1.4"
