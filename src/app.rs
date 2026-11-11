@@ -7,7 +7,6 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 
 use bytes::Bytes;
 use claviron_http::policy::{BodyNeed, HttpPolicy, HttpPolicyOverride};
@@ -313,15 +312,21 @@ impl LuaApplication {
     /// `requests.queue_timeout` how long the request may wait for a permit
     /// (`None` waits for one), and its `responses` how the reply is delivered.
     ///
-    /// A body taken whole is taken before the permit, so a slow upload holds
-    /// a place in the queue, never one of the state's permits.
+    /// Take an idle execution place before trying to queue. A buffered upload
+    /// holds whichever place admitted it until the body is ready.
     pub async fn handle(
         self: &Arc<Self>,
         request: Request<RouteBody>,
         policy: HttpPolicy,
     ) -> RouteResponse {
-        let Ok(queued) = self.waiting.try_acquire() else {
-            return unavailable();
+        let immediate = Arc::clone(&self.permits).try_acquire_owned().ok();
+        let queued = if immediate.is_none() {
+            let Ok(queued) = self.waiting.try_acquire() else {
+                return unavailable();
+            };
+            Some(queued)
+        } else {
+            None
         };
         let (parts, body) = request.into_parts();
         let declared = http_body::Body::size_hint(&body).exact();
@@ -341,17 +346,22 @@ impl LuaApplication {
         } else {
             body
         };
-        let acquire = Arc::clone(&self.permits).acquire_owned();
-        let queue_timeout: Option<Duration> = policy.requests.queue_timeout;
-        let permit = match queue_timeout {
-            Some(limit) => match tokio::time::timeout(limit, acquire).await {
-                Ok(permit) => permit,
-                Err(_) => return unavailable(),
-            },
-            None => acquire.await,
-        };
-        let Ok(permit) = permit else {
-            return unavailable();
+        let permit = if let Some(permit) = immediate {
+            permit
+        } else {
+            let acquire = Arc::clone(&self.permits).acquire_owned();
+            let acquired = match policy.requests.queue_timeout {
+                Some(limit) => match tokio::time::timeout(limit, acquire).await
+                {
+                    Ok(permit) => permit,
+                    Err(_) => return unavailable(),
+                },
+                None => acquire.await,
+            };
+            let Ok(permit) = acquired else {
+                return unavailable();
+            };
+            permit
         };
         drop(queued);
         match self.call(parts, body, &policy, permit).await {

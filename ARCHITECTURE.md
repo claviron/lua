@@ -471,8 +471,8 @@ return router
   it, a request that waits — on `fetch`, a cell, a stream, an event — lets
   another run; coroutines switch only there, so a handler that computes holds
   its turn. Raising it is a decision for applications that wait.
-- `max_queued` bounds the queue for a permit; a request beyond it is refused
-  with `503` at once. How long a request may wait for a permit is the route's
+- A request takes an idle permit directly. `max_queued` bounds requests
+  waiting for a permit. At zero, a busy state replies with `503` immediately. How long a request may wait for a permit is the route's
   `requests.queue_timeout`, as for JavaScript: the wait ends on a permit, or
   on that declared time.
 - **State is shared across requests**, as under Octane: globals and module

@@ -6,7 +6,10 @@ use http_body_util::BodyExt;
 
 use super::*;
 
-async fn load(fixture: &str) -> Arc<LuaApplication> {
+async fn load(
+    fixture: &str,
+    max_queued: usize,
+) -> Arc<LuaApplication> {
     let module = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/app")
         .join(fixture);
@@ -20,7 +23,7 @@ async fn load(fixture: &str) -> Arc<LuaApplication> {
         env_file: Vec::new(),
         env: Default::default(),
         concurrency: 1,
-        max_queued: 4,
+        max_queued,
         websocket: SocketConfig::default(),
         webtransport: SocketConfig::default(),
     };
@@ -74,7 +77,7 @@ fn text(frames: &[Bytes]) -> String {
 /// the state serving.
 #[tokio::test(flavor = "current_thread")]
 async fn a_router_module_serves_requests_from_one_state() {
-    let application = load("router.lua").await;
+    let application = load("router.lua", 4).await;
     let get = |uri: &'static str| {
         let application = Arc::clone(&application);
         async move {
@@ -123,7 +126,7 @@ async fn a_router_module_serves_requests_from_one_state() {
 /// body is a function leaves as the pieces it returns.
 #[tokio::test(flavor = "current_thread")]
 async fn bodies_stream_both_ways() {
-    let application = load("stream.lua").await;
+    let application = load("stream.lua", 4).await;
     let (status, _, frames) =
         send(&application, "POST", "/echo", pieces(&["a", "b", "c"])).await;
     assert_eq!(status, 200);
@@ -147,4 +150,32 @@ fn application_queue_accepts_zero_and_rejects_the_old_key() {
     assert!(
         error.to_string().contains("max_queued counts only waiting exchanges")
     );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn zero_queue_serves_idle_work_and_refuses_while_busy() {
+    let application = load("stream.lua", 0).await;
+    let (sender, receiver) = mpsc::channel(1);
+    let mut first = std::pin::pin!(send(
+        &application,
+        "POST",
+        "/echo",
+        boxed_body(ReplyStream(receiver)),
+    ));
+    let first_poll = std::future::poll_fn(|cx| {
+        std::task::Poll::Ready(std::future::Future::poll(first.as_mut(), cx))
+    })
+    .await;
+    assert!(first_poll.is_pending(), "the first request waits for its body");
+    assert_eq!(application.permits(), (1, 1));
+
+    let (status, _, _) =
+        send(&application, "POST", "/echo", pieces(&["second"])).await;
+    assert_eq!(status, 503);
+
+    sender.send(Ok(Bytes::from_static(b"first"))).await.unwrap();
+    drop(sender);
+    let (status, _, frames) = first.await;
+    assert_eq!(status, 200);
+    assert_eq!(text(&frames), "FIRST");
 }
