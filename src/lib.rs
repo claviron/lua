@@ -7,6 +7,8 @@
 
 #[cfg(feature = "app")]
 pub mod app;
+#[cfg(feature = "backend")]
+pub mod backend;
 #[cfg(feature = "server")]
 pub mod config;
 #[cfg(any(feature = "postgres", feature = "mysql", feature = "sqlite"))]
@@ -49,7 +51,8 @@ pub mod webtransport;
 /// Register what a host's Lua needs, in order, each from its own module:
 /// the fleet's cells and streams, the applications `lua.yaml` declares, the
 /// application events, the invocations, the search path and `lua:` tasks.
-/// Host-selected routes are separate: `edge::register`, after Edge's own.
+/// With `edge`, also install the site's `lua:` route factory on Edge.
+/// Native session bindings are installed when `webtransport` is enabled.
 #[cfg(all(feature = "app", feature = "orbit"))]
 pub fn register(
     state: &claviron_runtime::AppState
@@ -62,6 +65,14 @@ pub fn register(
     config::register(state)?;
     #[cfg(feature = "tasks")]
     task::register(state).map_err(claviron_runtime::registry::Error::msg)?;
+    #[cfg(feature = "edge")]
+    if state
+        .registry_ref()
+        .resolve::<claviron_edge::HostAppRegistry>()
+        .is_some()
+    {
+        edge::register(state)?;
+    }
     Ok(())
 }
 

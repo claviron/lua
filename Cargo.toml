@@ -30,7 +30,8 @@ test = false
 
 [features]
 default = []
-edge = ["app", "dep:claviron-edge", "claviron-http/lua", "dep:claviron-pipeline", "dep:claviron-types"]
+backend = ["app", "claviron-http/lua", "dep:claviron-pipeline"]
+edge = ["backend", "dep:claviron-edge", "dep:claviron-types"]
 # A host's configuration: `lua.yaml`'s search path, read at boot and reload.
 server = ["dep:async-trait", "dep:claviron-runtime", "dep:serde", "dep:serde_yaml"]
 # The fleet's shared state as Lua modules: `claviron.orbit.cell`, …
@@ -119,7 +120,7 @@ tokio = { workspace = true, features = ["io-util", "macros", "net", "rt", "rt-mu
 resolver = "3"
 
 [workspace.package]
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/claviron/lua"

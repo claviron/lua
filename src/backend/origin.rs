@@ -7,7 +7,7 @@ use super::LuaSocketOriginPolicy;
 use http::uri::{Authority, Scheme};
 use http::{HeaderMap, Uri, header};
 
-pub(super) fn allows_origin(
+pub(crate) fn allows_origin(
     policy: LuaSocketOriginPolicy,
     headers: &HeaderMap,
     uri: &Uri,

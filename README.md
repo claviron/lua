@@ -7,8 +7,11 @@ scripts get a fresh state per execution; HTTP applications retain one state per
 application per worker. Those are different lifetime contracts, not a pool of
 interchangeable request states.
 
-Applications use this crate beside `claviron` and call `claviron_lua::register`,
-plus `claviron_lua::edge::register` for host-selected routes. Lua is
+Use `claviron_lua::register(state)` to register the Lua runtime. With `edge`
+enabled, the same call installs the `lua:` route factory on Edge. Select
+`webtransport` to register native sessions too. Hosts that supply their own
+site registry can select `backend` and call
+`claviron_lua::backend::register(site)`. Lua is
 vendored through `mlua`: the build compiles its interpreter rather than depending
 on a system Lua installation. This crate is an engine, not a standalone runner
 binary, and does not require Edge to execute scripts.

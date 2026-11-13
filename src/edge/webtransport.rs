@@ -74,7 +74,7 @@ impl WebTransportHandler for Handler {
             return Err(WebTransportReject::new(StatusCode::NOT_FOUND));
         }
         // Native CONNECT and H1 upgrade share the same browser-origin boundary.
-        if !super::origin::allows_origin(
+        if !crate::backend::origin::allows_origin(
             self.endpoint.origin,
             &ctx.headers,
             &ctx.uri,
